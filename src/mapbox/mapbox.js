@@ -196,7 +196,7 @@ export default class Mapbox {
   _map: any = null;
   width: number = 0;
   height: number = 0;
-  _timer : number | null = null;
+  _timer: number | null = null;
 
   finalize() {
     this._destroy();
@@ -226,6 +226,7 @@ export default class Mapbox {
   }
 
   // PRIVATE API
+  // delayed fireLoadEvent in case map is unmounted right after
   _fireLoadEvent = () => {
     this._timer = window.setTimeout(() => {
       if (this._map) {
@@ -325,6 +326,7 @@ export default class Mapbox {
     if (!Mapbox.savedMap) {
       Mapbox.savedMap = this._map;
 
+      // manually deregister the mapbox events
       this._map.off('load', this.props.onLoad);
       this._map.off('error', this.props.onError);
       this._map.off('styledata', this._fireLoadEvent);
@@ -332,6 +334,8 @@ export default class Mapbox {
     } else {
       this._map.remove();
     }
+
+    this._map = null;
   }
 
   _initialize(props: Props) {
