@@ -23,7 +23,8 @@
 import PropTypes from 'prop-types';
 import {document} from '../utils/globals';
 
-function noop() {}
+function noop() {
+}
 
 function defaultOnError(event?: { error: any }) {
   if (event) {
@@ -131,7 +132,7 @@ type Props = {
 };
 
 // Try to get access token from URL, env, local storage or config
-export function getAccessToken() : string {
+export function getAccessToken(): string {
   let accessToken = null;
 
   if (typeof window !== 'undefined' && window.location) {
@@ -164,10 +165,10 @@ function checkPropTypes(props, component = 'component') {
 
 export default class Mapbox {
 
-  static initialized : boolean = false;
-  static propTypes : any = propTypes;
-  static defaultProps : any = defaultProps;
-  static savedMap : any = null;
+  static initialized: boolean = false;
+  static propTypes: any = propTypes;
+  static defaultProps: any = defaultProps;
+  static savedMap: any = null;
 
   constructor(props: Props) {
     if (!props.mapboxgl) {
@@ -190,11 +191,12 @@ export default class Mapbox {
     this._initialize(props);
   }
 
-  mapboxgl : MapboxGL;
-  props : Props = defaultProps;
-  _map : any = null;
-  width : number = 0;
-  height : number = 0;
+  mapboxgl: MapboxGL;
+  props: Props = defaultProps;
+  _map: any = null;
+  width: number = 0;
+  height: number = 0;
+  _timer : number | null = null;
 
   finalize() {
     this._destroy();
@@ -224,6 +226,17 @@ export default class Mapbox {
   }
 
   // PRIVATE API
+  _fireLoadEvent = () => {
+    this._timer = window.setTimeout(() => {
+      if (this._map) {
+        this.props.onLoad({
+          type: 'load',
+          target: this._map
+        });
+      }
+    }, 500);
+  };
+
   _reuse(props: Props) {
     this._map = Mapbox.savedMap;
     // When reusing the saved map, we need to reparent the map(canvas) and other child nodes
@@ -240,11 +253,6 @@ export default class Mapbox {
     Mapbox.savedMap = null;
 
     // Step3: update style and call onload again
-    const fireLoadEvent = () => props.onLoad({
-      type: 'load',
-      target: this._map
-    });
-
     if (props.mapStyle) {
       this._map.setStyle(props.mapStyle, {
         diff: true
@@ -253,9 +261,9 @@ export default class Mapbox {
 
     // call onload event handler after style fully loaded when style needs update
     if (this._map.isStyleLoaded()) {
-      fireLoadEvent();
+      this._fireLoadEvent();
     } else {
-      this._map.once('styledata', fireLoadEvent);
+      this._map.once('styledata', this._fireLoadEvent);
     }
   }
 
@@ -277,7 +285,7 @@ export default class Mapbox {
         };
       }
 
-      const mapOptions : any = {
+      const mapOptions: any = {
         container: props.container,
         center: [0, 0],
         zoom: 8,
@@ -310,12 +318,20 @@ export default class Mapbox {
       return;
     }
 
+    if (this._timer) {
+      window.clearTimeout(this._timer);
+    }
+
     if (!Mapbox.savedMap) {
       Mapbox.savedMap = this._map;
+
+      this._map.off('load', this.props.onLoad);
+      this._map.off('error', this.props.onError);
+      this._map.off('styledata', this._fireLoadEvent);
+
     } else {
       this._map.remove();
     }
-    this._map = null;
   }
 
   _initialize(props: Props) {
@@ -398,7 +414,7 @@ export default class Mapbox {
     }
   }
 
-  _getViewState(props: Props) : ViewState {
+  _getViewState(props: Props): ViewState {
     const {
       longitude,
       latitude,
@@ -410,7 +426,7 @@ export default class Mapbox {
     return {longitude, latitude, zoom, pitch, bearing, altitude};
   }
 
-  _checkStyleSheet(mapboxVersion : string = '0.47.0') {
+  _checkStyleSheet(mapboxVersion: string = '0.47.0') {
     if (typeof document === 'undefined') {
       return;
     }
